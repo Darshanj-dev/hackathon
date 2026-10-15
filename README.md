@@ -4,14 +4,16 @@ Native Android accessibility prototype combining Goal–Evidence–Verify with l
 
 ## User experience
 
-White background, black typography, large controls and four task modes:
+One screen built for one-handed and screen-reader use: compact header (language, help), live camera card, a four-way mode selector, a status line (Ready, Listening, Understanding, Speaking, Paused, Unavailable), the answer card with Replay/Stop/Follow-up, an optional request field, and a single primary action beside the microphone. Warm off-white surfaces, near-black type and a forest-teal brand colour; every control is at least 48dp and labelled for TalkBack.
 
-- **Places:** stationary washroom-sign scans, a bounded session evidence ledger, a fresh entrance-label verification scan, then explicit user acknowledgment. Direction signs never count as confirmed entrances. Evidence expires after eight seconds, is invalidated by detected camera rotation, and is cleared on cancellation/completion. The prepared corridor flow currently matches English washroom/restroom/toilet text.
-- **Find:** YOLOv8n COCO object categories, camera-relative position, limited repeated speech and vibration. No personal-object identification or distance estimates.
-- **Read:** bundled Latin and Devanagari OCR. Kannada-script OCR is not included.
-- **Describe:** a single captured image and a brief on-device explanation in the selected response language. Local Gemma 4 E2B uses LiteRT-LM 0.16.1, bounded context and output, lazy loading and background unload. It never controls destination confirmation.
+Every mode captures one frame, runs on-device detection (YOLOv8n) and OCR as hints, then asks the on-device Gemma 4 E2B model for the answer:
 
-The interface has no model names, browser downloads, import screens, backend choices, RAM controls or token metrics. English, Hindi and Kannada response-language selection remains. Fixed task-state prompts are currently English. Speech voices and recognition depend on the phone's installed providers. TalkBack handles automatic result announcements when touch exploration is active; Replay remains user-controlled.
+- **Describe:** what is in front of you, or an answer to a typed/spoken question (with follow-ups).
+- **Find:** any object by name ("find my keys"). Detector classes get live left/centre/right cues and vibration; Gemma confirms where the object is and checks frames the detector misses.
+- **Read:** OCR text shown immediately, then Gemma reads it in order and says what it is (also covers scripts OCR lacks, such as Kannada).
+- **Places:** "Identify this place" names the kind of place and useful features. **Washroom signs** keeps the Goal–Evidence–Verify flow: fresh sign scan, separate Verify entrance scan, explicit user confirmation. Generated text never changes that state.
+
+Voice: tap the microphone and speak ("find the nearest chair", "read this", "where am I", "repeat", "stop"); recognised words are shown and listening can be cancelled. Without Gemma installed, answers come from detection/OCR alone and the app says so. Gemma stays loaded while Saathi is in the foreground and is released in the background.
 
 ## Android Studio on the connected S24 FE
 
@@ -26,6 +28,10 @@ No manual model download, file transfer, import, login or API key is required fr
 A standalone APK does not contain the 2.59 GB weights. Use the developer installation task to provision the demo phone. Public APK-only distribution needs a separately designed managed delivery/preload mechanism; this repository does not claim that is implemented.
 
 YOLO is automatically downloaded and verified on a fresh build. Both models are pinned by revision and SHA256 and excluded from Git. See `docs/MAC_SETUP.md`, `docs/PRODUCT.md` and `docs/PHONE_VALIDATION.md`.
+
+## Open-vocabulary Find
+
+Find uses YOLOE-11s (Ultralytics, AGPL-3.0) with a MobileCLIP text encoder so any typed or spoken item name can be searched on-device. The ONNX files are too large for Git; run `bash scripts/fetch-finder.sh` once (Python 3.11) to export them into `app/src/main/assets/`. Without them, Find falls back to YOLOv8n classes plus Gemma checks. `clip_bpe_vocab.bin` is OpenAI CLIP's BPE vocabulary (MIT).
 
 ## Build checks
 

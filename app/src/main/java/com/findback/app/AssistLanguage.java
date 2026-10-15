@@ -21,11 +21,13 @@ public enum AssistLanguage {
     public String notFound(String key){return this==HINDI?objectName(key)+" इस दृश्य में नहीं मिला। कैमरा धीरे घुमाएँ।":this==KANNADA?objectName(key)+" ಈ ದೃಶ್ಯದಲ್ಲಿ ಕಂಡುಬಂದಿಲ್ಲ. ಕ್ಯಾಮೆರಾವನ್ನು ನಿಧಾನವಾಗಿ ತಿರುಗಿಸಿ.":"No "+key+" detected in this view. Try scanning slowly.";}
     public static String voiceObject(String phrase){
         String s=phrase.toLowerCase(java.util.Locale.ROOT);
-        for(String key:new String[]{"cell phone","bottle","chair","cup","book","person","laptop","toilet"})for(AssistLanguage l:values())if(s.contains(l.objectName(key)))return key;
-        if(s.contains("phone"))return "cell phone";
-        for(String key:YoloDetector.LABELS)if(s.contains(key))return key;
+        for(String key:new String[]{"cell phone","bottle","chair","cup","book","person","laptop","toilet"})for(AssistLanguage l:values())if(l==ENGLISH?word(s,key):s.contains(l.objectName(key)))return key;
+        // Whole words only: "earphones" is not a phone, "cupboard" is not a cup, "suitcase" is not a "case".
+        if(word(s,"phone")||word(s,"mobile"))return "cell phone";
+        for(String key:YoloDetector.LABELS)if(word(s,key))return key;
         return null;
     }
+    private static boolean word(String text,String key){return java.util.regex.Pattern.compile("(^|[^\\p{L}])"+java.util.regex.Pattern.quote(key)+"s?($|[^\\p{L}])").matcher(text).find();}
     public static String canonicalObject(String value){
         String s=value.toLowerCase(java.util.Locale.ROOT).trim();
         for(AssistLanguage language:values())for(String key:new String[]{"bottle","chair","cup","book","cell phone","person","laptop","toilet"})if(s.equals(language.objectName(key)))return key;

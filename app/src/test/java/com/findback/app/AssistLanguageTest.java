@@ -7,4 +7,8 @@ public class AssistLanguageTest {
     @Test public void sceneQuestionDoesNotBecomeAnObject(){assertNull(AssistLanguage.voiceObject("What is in front of me?"));}
     @Test public void englishFindRetainsAllDetectorClasses(){assertEquals("umbrella",AssistLanguage.voiceObject("Find my umbrella"));}
     @Test public void localizedTypedObjectMapsToDetectorClass(){assertEquals("bottle",AssistLanguage.canonicalObject("ಬಾಟಲಿ"));}
+    @Test public void earphonesAreNotPhones(){assertNull(AssistLanguage.voiceObject("earphones"));assertNull(AssistLanguage.voiceObject("headphones case"));}
+    @Test public void cupboardIsNotACup(){assertNull(AssistLanguage.voiceObject("cupboard"));}
+    @Test public void earpodsCaseUsesGemma(){assertNull(AssistLanguage.voiceObject("earpods case"));}
+    @Test public void pluralObjectStillMatches(){assertEquals("chair",AssistLanguage.voiceObject("chairs"));assertEquals("cell phone",AssistLanguage.voiceObject("my phone"));}
 }

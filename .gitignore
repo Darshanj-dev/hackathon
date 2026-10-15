@@ -13,3 +13,7 @@ app/src/main/assets/*.onnx
 
 __pycache__/
 *.pyc
+
+# Ultralytics/MobileCLIP weights downloaded by scripts/export-finder.py
+*.pt
+mobileclip_*.ts
