@@ -24,6 +24,7 @@ public final class GemmaAssistant implements AutoCloseable {
     private volatile boolean closed;
     private Engine engine;
     private String backend="";
+    private boolean preferCpu=false;
     public interface Listener {
         void onStatus(String message);
         void onPartial(String text);
@@ -47,11 +48,11 @@ public final class GemmaAssistant implements AutoCloseable {
         if(!busy.compareAndSet(false,true)){listener.onError("Your assistant is still working. Please wait a moment.");return;}
         int ticket=generation.get();
         executor.execute(()->{
-            long start=SystemClock.elapsedRealtime();AtomicLong first=new AtomicLong(-1);AtomicBoolean ended=new AtomicBoolean();CountDownLatch done=new CountDownLatch(1);StringBuilder answer=new StringBuilder();AtomicReference<String> failure=new AtomicReference<>();
+            long start=SystemClock.elapsedRealtime();AtomicLong first=new AtomicLong(-1);AtomicBoolean ended=new AtomicBoolean();CountDownLatch done=new CountDownLatch(1);StringBuilder answer=new StringBuilder();AtomicReference<String> failure=new AtomicReference<>();AtomicBoolean resetEngine=new AtomicBoolean();
             Conversation conversation=null;
             try{
                 if(engine==null){post(ticket,()->listener.onStatus("Preparing your assistant…"));cache.mkdirs();
-                    try{engine=initialize(new Backend.GPU());backend="GPU";}catch(RuntimeException|LinkageError gpu){post(ticket,()->listener.onStatus("Preparing assistance for your phone…"));engine=initialize(new Backend.CPU(2,null));backend="CPU";}
+                    if(preferCpu){engine=initialize(new Backend.CPU(2,null));backend="CPU";}else try{engine=initialize(new Backend.GPU());backend="GPU";}catch(RuntimeException|LinkageError gpu){android.util.Log.w("Saathi","GPU initialization failed; trying CPU",gpu);preferCpu=true;post(ticket,()->listener.onStatus("Preparing assistance for your phone…"));engine=initialize(new Backend.CPU(2,null));backend="CPU";}
                 }
                 if(closed||generation.get()!=ticket)return;
                 post(ticket,()->listener.onStatus("Understanding your surroundings…"));
@@ -66,15 +67,15 @@ public final class GemmaAssistant implements AutoCloseable {
                         synchronized(answer){answer.append(chunk.getContents().toString());String partial=answer.toString();post(ticket,()->listener.onPartial(partial));}
                     }
                     @Override public void onDone(){ended.set(true);done.countDown();}
-                    @Override public void onError(Throwable e){failure.set("I could not understand this view. Hold the camera steady and try again.");ended.set(true);done.countDown();}
+                    @Override public void onError(Throwable e){android.util.Log.e("Saathi","Scene inference failed",e);failure.set("I could not understand this view. Hold the camera steady and try again.");ended.set(true);done.countDown();}
                 });
                 if(!done.await(30,TimeUnit.SECONDS)){conversation.cancelProcess();done.await(5,TimeUnit.SECONDS);failure.set("That took longer than expected. Try again, or use Find and Read for immediate feedback.");}
                 ended.set(true);
-                if(failure.get()!=null)post(ticket,()->listener.onError(failure.get()));
+                if(failure.get()!=null){resetEngine.set(true);post(ticket,()->listener.onError(failure.get()));}
                 else{String text; synchronized(answer){text=answer.toString().trim();}long total=SystemClock.elapsedRealtime()-start;
                     if(text.isEmpty())post(ticket,()->listener.onError("I could not describe this view. Please try again."));else post(ticket,()->listener.onComplete(text,first.get(),total));}
-            }catch(Exception|LinkageError e){post(ticket,()->listener.onError("Scene descriptions could not start. Close other apps and retry. You can still find objects and read text."));}
-            finally{ended.set(true);active=null;if(conversation!=null)try{conversation.close();}catch(Exception ignored){}busy.set(false);}
+            }catch(Exception|LinkageError e){resetEngine.set(true);android.util.Log.e("Saathi","Scene engine failed",e);post(ticket,()->listener.onError("Scene descriptions could not start. Close other apps and retry. You can still find objects and read text."));}
+            finally{ended.set(true);active=null;if(conversation!=null)try{conversation.close();}catch(Exception ignored){}if(resetEngine.get()&&engine!=null){if(backend.equals("GPU"))preferCpu=true;try{engine.close();}catch(Exception ignored){}engine=null;}busy.set(false);}
         });
     }
     private void post(int ticket,Runnable action){main.post(()->{if(!closed&&generation.get()==ticket)action.run();});}

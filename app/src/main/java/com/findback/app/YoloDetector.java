@@ -26,7 +26,10 @@ public final class YoloDetector implements AutoCloseable {
         }
     }
     public List<Hit> detect(Bitmap image) throws Exception {
-        canvas.drawBitmap(image,null,new android.graphics.Rect(0,0,640,640),resizePaint);
+        float scale=Math.min(640f/image.getWidth(),640f/image.getHeight());
+        float padX=(640-image.getWidth()*scale)/2,padY=(640-image.getHeight()*scale)/2;
+        canvas.drawColor(android.graphics.Color.rgb(114,114,114));
+        canvas.drawBitmap(image,null,new android.graphics.RectF(padX,padY,padX+image.getWidth()*scale,padY+image.getHeight()*scale),resizePaint);
         scaled.getPixels(pixels,0,640,0,0,640,640);
         for(int i=0;i<pixels.length;i++) { int p=pixels[i]; input[i]=((p>>16)&255)/255f; input[i+pixels.length]=((p>>8)&255)/255f; input[i+pixels.length*2]=(p&255)/255f; }
         try (OnnxTensor tensor=OnnxTensor.createTensor(env,FloatBuffer.wrap(input),new long[]{1,3,640,640}); OrtSession.Result result=session.run(Collections.singletonMap(session.getInputNames().iterator().next(),tensor))) {
@@ -36,7 +39,7 @@ public final class YoloDetector implements AutoCloseable {
             for(int i=0;i<out[0].length;i++) {
                 int cls=0; float confidence=0;
                 for(int c=4;c<84;c++) if(out[c][i]>confidence){confidence=out[c][i];cls=c-4;}
-                if(confidence>=.45f) candidates.add(new Hit(LABELS[cls],confidence,out[0][i]/640,out[1][i]/640,out[2][i]/640,out[3][i]/640));
+                if(confidence>=.45f) candidates.add(new Hit(LABELS[cls],confidence,(out[0][i]-padX)/(scale*image.getWidth()),(out[1][i]-padY)/(scale*image.getHeight()),out[2][i]/(scale*image.getWidth()),out[3][i]/(scale*image.getHeight())));
             }
             candidates.sort((a,b)->Float.compare(b.score(),a.score()));
             List<Hit> kept=new ArrayList<>();

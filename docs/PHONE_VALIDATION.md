@@ -10,7 +10,7 @@ Pull main, sync Android Studio, connect one authorized S24 FE and run **Saathi �
 
 - Verify white screens, black text, readable contrast, rounded controls and predictable focus order in Places/Find/Read/Describe.
 - Test with TalkBack and large system font settings. Automatic results should use TalkBack rather than overlapping app speech; Replay is explicit.
-- Check Language, Replay, Stop, Evidence, Cancel and Help. Help may open the dialer but must never place a call.
+- Check Language, camera Switch, Replay, Stop, Evidence, Cancel and Help. Help may open the dialer but must never place a call.
 
 ## Goal–Evidence–Verify
 
@@ -35,3 +35,17 @@ Measure cold total delay, warm first-token latency, end-to-end speech delay, tot
 On the local connected computer, use Android Studio profiling/Perfetto and `adb shell dumpsys meminfo com.findback.app`. Test repeated task/language changes for memory growth. Confirm the camera indicator stops on background and stale answers are not spoken after returning.
 
 Use a controlled stationary demonstration with the user's usual mobility support. Intended-user co-design and supervised evaluation are future work, not replaced by these engineering checks.
+
+## Report a failing mode
+
+After reproducing the failure, run `bash scripts/check-phone.sh` from the Mac checkout. This prints installation version, camera permission, private model file sizes and recent Saathi/runtime errors. It does not capture images or export recognized text. Share this output with the developer; no credentials are needed. Check each mode separately, including switching modes while OCR is running.
+
+The current camera path uses CameraX RGBA frames with explicit row-stride handling, a shared cropped preview/analysis viewport and higher resolution OCR input. Pure decoding tests cover channel order, row padding, buffer offsets and truncated input. These tests do not replace actual CameraX execution on a phone.
+
+## Integrated image interpretation
+
+Find, Read and Places feed a captured JPEG and bounded detector/OCR observations into the same installed Gemma 4 engine used by Describe. The interpretation replaces the main response in the selected language; there is no separate opinion panel. Initial recognition remains visible while interpretation loads. A Find request makes at most one interpretation, then stops scanning until the next request. Read/Find interpretation failure retains the original recognition result. Missing private weights are explicitly reported as reduced functionality; they are not silently treated as a complete installation.
+
+Places interpretation is descriptive only. It cannot set, verify or confirm a destination. Its completed description is labelled as a captured view and accompanied by the current deterministic sign status. Verify still requires fresh OCR, and Confirm still requires explicit acknowledgment.
+
+On the phone, test all four modes with the model provisioned, all three response languages, cancellation during model initialization/inference, and a deliberately missing model installation. Check that changing modes prevents old interpretations from appearing and that a generation failure restores the original recognition result. Runtime model behavior remains unverified in the cloud because the full weights/phone are unavailable here.
