@@ -1,44 +1,44 @@
-# FindBack — Android accessibility prototype
+# Saathi — Verify the next step
 
-Native Android app for finding COCO objects and reading signs with brief spoken feedback.
-Built with Java 17, Android Views, CameraX, YOLOv8n / ONNX Runtime, bundled ML Kit OCR, Android TTS and speech recognition. Minimum Android 8 (API 26). ARM64-only build, targeting the Samsung Galaxy S24 FE (8 GB RAM). An x86 emulator requires changing the ABI filter. Use the ARM64 emulator or a real phone with the default configuration. No API keys or backend required.
+Native Android accessibility prototype combining Goal–Evidence–Verify with local object detection, OCR and scene descriptions. App ID remains `com.findback.app` so existing developer installs can update.
 
-## Open in Android Studio
+## User experience
 
-1. Open this directory as a project. Use Android Studio's embedded JDK (17 or newer) and install Android SDK 35 when prompted.
-2. A fresh build automatically runs `scripts/fetch-model.sh` to download the pinned, checksum-verified 12 MB YOLO model. You can also run `bash scripts/fetch-model.sh` manually. The prepared cloud checkout already includes it, but the binary is ignored by Git.
-3. Sync Gradle, connect a physical Android phone with USB debugging enabled, select **app**, and Run. Accept camera permission. Configure an English Android text-to-speech voice if necessary.
-4. Emulator testing requires a configured camera. A physical phone is recommended for latency and accessibility validation.
+White background, black typography, large controls and four task modes:
 
-CLI: `./gradlew assembleDebug assembleDemo testDebugUnitTest lintDebug`
-APKs: `app/build/outputs/apk/debug/app-debug.apk` for development; `app/build/outputs/apk/demo/app-demo.apk` for the optimized, non-debuggable demo. The demo uses the local debug signing key for installation convenience; it is not a production release. In Android Studio choose the **demo** build variant for the smaller optimized build. If a locally built APK cannot update the provided APK because the signing keys differ, uninstall this prototype first; this clears saved sightings.
+- **Places:** stationary washroom-sign scans, a bounded session evidence ledger, a fresh entrance-label verification scan, then explicit user acknowledgment. Direction signs never count as confirmed entrances. Evidence expires after eight seconds, is invalidated by detected camera rotation, and is cleared on cancellation/completion. The prepared corridor flow currently matches English washroom/restroom/toilet text.
+- **Find:** YOLOv8n COCO object categories, camera-relative position, limited repeated speech and vibration. No personal-object identification or distance estimates.
+- **Read:** bundled Latin and Devanagari OCR. Kannada-script OCR is not included.
+- **Describe:** a single captured image and a brief on-device explanation in the selected response language. Local Gemma 4 E2B uses LiteRT-LM 0.16.1, bounded context and output, lazy loading and background unload. It never controls destination confirmation.
 
-## Try it
+The interface has no model names, browser downloads, import screens, backend choices, RAM controls or token metrics. English, Hindi and Kannada response-language selection remains. Fixed task-state prompts are currently English. Speech voices and recognition depend on the phone's installed providers. TalkBack handles automatic result announcements when touch exploration is active; Replay remains user-controlled.
 
-- **Find object**: enter `bottle`, `chair`, `cup`, `book`, or `cell phone`, tap **Scan now**, and slowly scan. Detections produce a box, a short positional cue and vibration. Detection runs approximately once per second, with repeated audio suppressed.
-- **Read text**: aim at a well-lit English sign, tap **Read text**, then **Scan now**. OCR reads the next available frame aloud.
-- **Voice command**: try “find a bottle,” “read text,” or “repeat.” Android's recognition provider may require internet; typing and buttons remain available.
-- **Last seen** recalls a timestamp and past camera-relative position for the entered object class. It is not personal-object identification or room-level location memory.
-- **Repeat** and **Stop audio** control spoken feedback. Controls have large touch targets and support TalkBack. Actual TalkBack usability still needs testing with users.
+## Android Studio on the connected S24 FE
 
-## Model contract
+1. Pull `main` and sync Gradle in a recent Android Studio supporting AGP 8.13.2, SDK 35 and JDK 17+.
+2. Connect one authorized Android phone (or set `ANDROID_SERIAL` for multiple devices).
+3. Select the shared **Saathi — Install and run** configuration, then Run. If the IDE has not listed it, open the Gradle tool window and run `:app:runOnPhone`, or run `./gradlew :app:runOnPhone` in Studio's Terminal.
+4. The developer computer builds the debug app, downloads/checksum-verifies installation data once, installs the APK, streams the assistant into the app's private storage using ADB `run-as`, verifies the phone copy and launches Saathi. Keep USB connected. This is developer provisioning, not an end-user onboarding step.
+5. Later runs reuse verified local/phone data. Uninstalling the app deletes its private assistant copy. The phone requires about 2.59 GB for the assistant plus the APK and runtime headroom.
 
-`assets/yolov8n.onnx`: float32 RGB `[1,3,640,640]` input, `[1,84,8400]` output, 80 COCO classes, no embedded NMS. Images are resized directly to 640×640; decoded coordinates map back to the original frame. Confidence threshold 0.45; class-wise NMS IoU 0.45. The model is not trained specifically for accessibility hazards. Doors and restroom symbols are not COCO classes; use Read for printed signs. Devanagari OCR is bundled for Hindi; Kannada-script OCR is not supported.
+No manual model download, file transfer, import, login or API key is required from the app user. The one-time developer installation still needs internet on the Mac. The cloud network has denied the binary CDN download; full provisioning and actual model execution have not been validated on a physical S24 FE. Do not describe them as tested until that run completes.
 
-Source: Hyuto/yolov8-onnxruntime-web, commit `fc4a52c466d15ad4519873a0cef22fbc935b93b6`, `public/model/yolov8n.onnx`.
-SHA256: `505648ada344cd9f3f31e51d49c489c070819bc96cc758258a8fd51488e00579`.
-Ultralytics models have licensing obligations (AGPL-3.0 or commercial licensing as applicable); review upstream terms before distribution. The ONNX export is third-party; no claim of upstream signed provenance is made.
+A standalone APK does not contain the 2.59 GB weights. Use the developer installation task to provision the demo phone. Public APK-only distribution needs a separately designed managed delivery/preload mechanism; this repository does not claim that is implemented.
 
-## Scope and privacy
+YOLO is automatically downloaded and verified on a fresh build. Both models are pinned by revision and SHA256 and excluded from Git. See `docs/MAC_SETUP.md`, `docs/PRODUCT.md` and `docs/PHONE_VALIDATION.md`.
 
-Camera processing, Gemma inference (when a model is imported), and sighting memory stay on-device. No camera frames are uploaded by this app. External Android speech recognition may process voice remotely under the selected provider's policy. This prototype describes camera-relative positions, not safe routes, reliable distance, or obstacle clearance. It cannot distinguish your bottle from another bottle. It is not a substitute for a cane, guide dog, or mobility training.
+## Build checks
 
-Gemma 4 E2B scene-question integration now uses Google's LiteRT-LM Android runtime 0.16.1. It supports one captured image per request and streamed text with a short output cap. Model weights are imported separately; the cloud network has blocked their download, so actual Gemma inference is **not validated**. See [Mac setup and model download](docs/MAC_SETUP.md). English/Hindi/Kannada selection controls model prompts and speech locales; fixed detection cues cover common objects. Hindi OCR is bundled; Kannada OCR is not supported. Personal-object embeddings and persistent tracking remain unimplemented.
+`./gradlew assembleDebug testDebugUnitTest lintDebug`
 
-## Cloud build
+Optimized developer-signed build: `./gradlew assembleDemo`. The `demo` variant is not debuggable, so provision using the debug install task first; it shares the same app ID/signing key and retains the private model on an update. A different developer signing key requires a manual uninstall first, which deletes data.
 
-The prepared machine stores SDK/JDK/Gradle under `/workspace/tooling`; these are outside the source checkout. Android Studio's graphical UI is not running in the cloud. See `scripts/cloud-build.sh` for the tested cloud build command; it uses this environment's proxy without disabling TLS verification. Existing checkouts are isolated: no Git worktree is needed.
+Cloud-only build helper: `bash scripts/cloud-build.sh` uses retained tooling under `/workspace/tooling`. It must not be run on your Mac. Each cloud task already has an isolated checkout; no Git worktree is needed.
 
-## Performance profile
+## Boundaries and privacy
 
-ARM64-only native libraries reduce APK size. YOLO nano uses two CPU threads; analysis requests 640×480 camera frames, samples at most about once per 900 ms, and retains only the latest camera frame. Inference runs off the UI thread, never queues unbounded frames, is idle until Find starts, and pauses in the background. OCR runs only on request. Release builds enable code/resource shrinking. Gemma weights are not bundled in the APK; its runtime is included. The separate 2.59 GB model loads lazily, caps context at 1,024 tokens and output at 64 tokens, disables thinking, and is unloaded when the app is backgrounded or the user requests it. Model loading can still temporarily require substantial RAM and takes time; these controls do not guarantee low peak RAM. One UI 9 behavior, latency, RAM, thermal and battery consumption have not been measured on an S24 FE. Do not treat these design choices as measured performance claims.
+No images/video are stored or uploaded by Saathi. Session sign text is memory-only and cleared on task completion/cancellation. Object-category last sightings contain category/time/camera side, not personal identity. Android speech/TTS services may use network independently. Gyroscope motion invalidation is optional and threshold-based; it cannot detect every spatial change. Short evidence expiry is also enforced.
+
+The app does not determine a safe walking route, obstacle clearance, road-crossing safety or room accessibility. A user-framed entrance-label scan plus user confirmation is not automated door recognition. Use existing mobility support. This is a controlled prototype; no phone latency, RAM, battery or field-safety claims are established by compilation or unit tests.
+
+Model provenance: Google's AI Edge Gallery lists the LiteRT Community Gemma 4 E2B conversion, revision `6e5c4f1e395deb959c494953478fa5cec4b8008f`, SHA256 `181938105e0eefd105961417e8da75903eacda102c4fce9ce90f50b97139a63c`. YOLO export: Hyuto/yolov8-onnxruntime-web revision `fc4a52c466d15ad4519873a0cef22fbc935b93b6`, SHA256 `505648ada344cd9f3f31e51d49c489c070819bc96cc758258a8fd51488e00579`. Review upstream model/runtime licenses before redistribution; Ultralytics models carry AGPL/commercial licensing obligations.

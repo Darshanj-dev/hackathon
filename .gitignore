@@ -8,3 +8,8 @@ app/src/main/assets/*.onnx
 
 .model-tools/
 *.litertlm
+
+.assistant-models/
+
+__pycache__/
+*.pyc

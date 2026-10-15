@@ -1,24 +1,37 @@
-# S24 FE / One UI validation
+# Saathi physical-phone validation
 
-These checks are not yet executed on a phone. Use the optimized **demo** variant on the Galaxy S24 FE (8 GB RAM); it is ARM64-only and locally debug-signed.
+These device checks remain unexecuted in the cloud. Unit tests establish policy behavior, not camera accuracy, accessibility usability or field safety.
 
-1. Install `app-demo.apk`; permit the camera. Deny permission once first to check the recovery message, then enable camera in Android app settings.
-2. Turn on TalkBack. Navigate every action, enter an object, trigger a scan, repeat feedback, stop audio and pause scanning. Check whether TalkBack and app speech interrupt each other; this needs user testing.
-3. Test a bottle and chair in centre/left/right of the camera view, portrait and landscape. Confirm boxes align, speech does not repeat every frame, and absent objects produce an honest response. Similar objects are not individually identified.
-4. Read an English room sign in good lighting, then test blurred/no-text frames. Toggle airplane mode: bundled OCR and detection should work; Android's voice input may not.
-5. Switch apps and lock the screen. Confirm the camera indicator turns off and there is no background narration. Return and confirm scanning can resume.
-6. Run Find continuously for 10 minutes and compare to an idle camera preview at the same brightness. Record thermal changes, missed frames and battery percentage (percentage alone is a coarse measure).
-7. Measure real behavior with Android Studio's Memory Profiler on **debug**, and system tracing/Perfetto on **demo**. No profiler or debug overhead should be included in claimed demo latency. Sample `adb shell dumpsys meminfo com.findback.app` at launch, after scanning, and after 10 minutes; distinguish Java heap, native heap and total PSS. Track growth rather than just the first sample.
-8. On the local connected computer, use `adb shell dumpsys gfxinfo com.findback.app` to inspect UI rendering and record a system trace for camera/inference stalls. Model inference time and spoken-response latency are different metrics.
+## Install
 
-The cloud build verifies compilation, lint, detector overlap math, model inference on a test image, package signature and native alignment. It does not establish phone usability, accuracy across environments, battery life, or safe navigation.
+Pull main, sync Android Studio, connect one authorized S24 FE and run **Saathi — Install and run**. Wait for private assistant provisioning/checksum verification and launch. The ordinary APK alone does not contain the 2.59 GB model. Never present a non-provisioned standalone APK as a complete offline installation.
 
-## Gemma 4 / multilingual checks
+## Appearance and accessibility
 
-- Download the pinned E2B model with the Mac guide; import it. Try a wrong file and confirm rejection without losing the previous model. Both exact length and SHA256 must match.
-- Ask one scene question in English, Hindi and Kannada. Check the answer against the image, language quality, voice availability, and hallucinations. These responses have not been validated in the cloud.
-- Record cold total time separately from warm first-token latency. The app displays both; first-token timing excludes native model initialization. Speech starts when the short answer completes, not on each text token.
-- Try GPU initialization; observe whether the app falls back to CPU. A fallback is not evidence of GPU performance on the S24 FE.
-- Cancel during generation and leave the app while loading. Initialization can finish before unloading takes effect; check that memory then falls and no stale answer is spoken.
-- Use Release AI RAM, then re-open Find and Read. Confirm they still work without Gemma. Check memory after repeated language changes and model reloads.
-- Run Hindi OCR on a printed Devanagari sign. Kannada-script direct OCR is not included; do not present it as a tested capability.
+- Verify white screens, black text, readable contrast, rounded controls and predictable focus order in Places/Find/Read/Describe.
+- Test with TalkBack and large system font settings. Automatic results should use TalkBack rather than overlapping app speech; Replay is explicit.
+- Check Language, Replay, Stop, Evidence, Cancel and Help. Help may open the dialer but must never place a call.
+
+## Goal–Evidence–Verify
+
+1. In Places, scan an actual English washroom sign. Irrelevant text must not become a destination.
+2. A directional board remains a candidate, even during a verification attempt. Arrow orientation must not be announced as verified.
+3. Aim at an entrance label and choose Verify entrance. Only a separate newer scan may enable Confirm entrance. Confirm manually; no automatic arrival.
+4. Cover the sign, substitute Exit, show competing labels, move/rotate the phone, or wait beyond eight seconds. Current confirmation must be withdrawn and require a new scan.
+5. Cancel or complete the task. Session sign evidence must clear. Previously seen text must never be announced as a current direction.
+6. Test poor light and missing camera permission. No “path clear,” fabricated distance or walking-route claims should appear.
+
+## Existing capabilities
+
+- Find a bottle/chair/cup and compare camera-relative boxes and speech. Similar objects are not personally identified.
+- Read a real Latin and Hindi sign. Kannada-script direct OCR is not implemented.
+- Describe a real still image in English, Hindi and Kannada; verify factual/language quality and installed voices. Generated descriptions cannot change destination confirmation.
+- Test airplane-mode OCR/detection/model inference after provisioning. Android speech providers may still require network depending on their installed assets.
+
+## Performance and lifecycle
+
+Measure cold total delay, warm first-token latency, end-to-end speech delay, total PSS, peak native/Java memory, battery and thermals on the named phone/One UI version. The model is lazy-loaded, uses a bounded context and output, and unloads on background/task switches; these are design choices, not measured savings. Leaving the app during native initialization can delay release until initialization returns.
+
+On the local connected computer, use Android Studio profiling/Perfetto and `adb shell dumpsys meminfo com.findback.app`. Test repeated task/language changes for memory growth. Confirm the camera indicator stops on background and stale answers are not spoken after returning.
+
+Use a controlled stationary demonstration with the user's usual mobility support. Intended-user co-design and supervised evaluation are future work, not replaced by these engineering checks.

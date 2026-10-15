@@ -2,7 +2,7 @@ plugins { id 'com.android.application' }
 android {
  namespace 'com.findback.app'
  compileSdk 35
- defaultConfig { applicationId 'com.findback.app'; minSdk 26; targetSdk 35; versionCode 2; versionName '0.2.0'; ndk { abiFilters 'arm64-v8a' }; testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner' }
+ defaultConfig { applicationId 'com.findback.app'; minSdk 26; targetSdk 35; versionCode 3; versionName '0.3.0'; ndk { abiFilters 'arm64-v8a' }; testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner' }
  compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
  buildTypes {
   debug { }
@@ -41,3 +41,19 @@ tasks.register('prepareYolo', Exec) {
  outputs.file file('src/main/assets/yolov8n.onnx')
 }
 tasks.named('preBuild').configure { dependsOn tasks.named('prepareYolo') }
+
+// Developer-only provisioning. The installed app exposes no model setup or download controls.
+tasks.register('prepareAssistant', Exec) {
+ workingDir rootProject.projectDir
+ commandLine 'bash', rootProject.file('scripts/fetch-assistant.sh').absolutePath
+ inputs.file rootProject.file('scripts/fetch-assistant.sh')
+ outputs.file rootProject.file('.assistant-models/gemma-4-E2B-it.litertlm')
+}
+tasks.register('runOnPhone', Exec) {
+ dependsOn tasks.named('assembleDebug'), tasks.named('prepareAssistant')
+ workingDir rootProject.projectDir
+ commandLine 'python3', rootProject.file('scripts/provision-phone.py').absolutePath,
+   '--adb', new File(android.sdkDirectory, 'platform-tools/adb').absolutePath,
+   '--apk', layout.buildDirectory.file('outputs/apk/debug/app-debug.apk').get().asFile.absolutePath,
+   '--model', rootProject.file('.assistant-models/gemma-4-E2B-it.litertlm').absolutePath
+}
